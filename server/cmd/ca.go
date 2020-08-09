@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/jtaylorcpp/piv-go/piv"
-	"github.com/simplepki/server/config"
+	"github.com/simplepki/pki/config"
 	"github.com/spf13/cobra"
 )
 

@@ -1,14 +1,14 @@
 package auth
 
 import (
-	"os"
-	"errors"
 	"encoding/json"
+	"errors"
+	"os"
 
-	"github.com/simplepki/core/types"
-	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/simplepki/pki/core/types"
 )
 
 type JWTAuthorizer interface {
@@ -19,7 +19,7 @@ type LambdaJWTAuthorizer struct {
 	ARN string
 }
 
-func GetJWTAuthorizer(authType string) (JWTAuthorizer,error) {
+func GetJWTAuthorizer(authType string) (JWTAuthorizer, error) {
 	switch authType {
 	case "lambda":
 		arn := os.Getenv("JWT_AUTH_ARN")
@@ -36,11 +36,11 @@ func GetJWTAuthorizer(authType string) (JWTAuthorizer,error) {
 	}
 }
 
-func (l LambdaJWTAuthorizer) AuthorizeResource(jwt, jwtType, resource string ) (bool, error) {
+func (l LambdaJWTAuthorizer) AuthorizeResource(jwt, jwtType, resource string) (bool, error) {
 	lambdaEvent := types.AuthorizeCredentialsEvent{
-		Token: jwt,
+		Token:     jwt,
 		TokenType: jwtType,
-		Resource: resource,
+		Resource:  resource,
 	}
 
 	jsonEvent, err := json.Marshal(&lambdaEvent)
@@ -50,7 +50,7 @@ func (l LambdaJWTAuthorizer) AuthorizeResource(jwt, jwtType, resource string ) (
 
 	lambdaInput := &lambda.InvokeInput{
 		FunctionName: aws.String(l.ARN),
-		Payload: jsonEvent,
+		Payload:      jsonEvent,
 	}
 
 	lambdaSvc := lambda.New(session.New())
@@ -64,7 +64,6 @@ func (l LambdaJWTAuthorizer) AuthorizeResource(jwt, jwtType, resource string ) (
 	if err != nil {
 		return false, err
 	}
-	
 
 	return result, nil
 }

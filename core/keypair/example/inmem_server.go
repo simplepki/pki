@@ -10,7 +10,7 @@ import (
 	"net"
 	"net/http"
 
-	kp "github.com/simplepki/core/keypair"
+	kp "github.com/simplepki/pki/core/keypair"
 )
 
 type tcpKeepAliveListener struct {

@@ -1,7 +1,7 @@
 package store
 
 import (
-	"github.com/simplepki/core/keypair"
+	"github.com/simplepki/pki/core/keypair"
 )
 
 type Store interface {

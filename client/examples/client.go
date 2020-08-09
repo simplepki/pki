@@ -3,10 +3,11 @@ package main
 import (
 	"bytes"
 	"log"
+
 	//"io/ioutil"
 	"net/http"
 
-	"github.com/simplepki/client"
+	"github.com/simplepki/pki/client"
 )
 
 func main() {

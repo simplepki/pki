@@ -2,7 +2,7 @@ package config
 
 import (
 	"github.com/spf13/viper"
-	"github.com/simplepki/core/keypair"
+	"github.com/simplepki/pki/core/keypair"
 )
 
 func init() {

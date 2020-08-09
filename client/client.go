@@ -12,14 +12,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/simplepki/pki/client/tls"
+	"github.com/simplepki/pki/core/types"
 	"github.com/spf13/viper"
-	"github.com/simplepki/client/config"
-	"github.com/simplepki/client/tls"
-	"github.com/simplepki/core/types"
-
+	"honnef.co/go/tools/config"
 )
 
 func New() *Client {
@@ -59,9 +58,9 @@ func (c *Client) GetToken() (string, error) {
 
 	tokenEvent := types.CreateCredentialsEvent{
 		Account: viper.GetString("account"),
-		Type: "local",
-		Prefix: viper.GetString("token_prefix"),
-		TTL: viper.GetInt64("token_ttl") * 60 * 60,
+		Type:    "local",
+		Prefix:  viper.GetString("token_prefix"),
+		TTL:     viper.GetInt64("token_ttl") * 60 * 60,
 	}
 
 	jsonEvent, err := json.Marshal(tokenEvent)
@@ -71,7 +70,7 @@ func (c *Client) GetToken() (string, error) {
 
 	lambdaInput := &lambda.InvokeInput{
 		FunctionName: aws.String(viper.GetString("token_generator")),
-		Payload: jsonEvent,
+		Payload:      jsonEvent,
 	}
 
 	svc := lambda.New(session.New())
@@ -83,12 +82,11 @@ func (c *Client) GetToken() (string, error) {
 	return string(lambdaOutput.Payload), nil
 }
 
-
-func(c *Client) NewCertificateAuthority() error {
+func (c *Client) NewCertificateAuthority() error {
 	log.Printf("Createing new CA with name %s\n", viper.GetString("certificate_authority"))
 	caEvent := types.CreateCertificateAuthorityEvent{
-		Token: viper.GetString("token"),
-		CAName: viper.GetString("certificate_authority"),
+		Token:   viper.GetString("token"),
+		CAName:  viper.GetString("certificate_authority"),
 		Account: viper.GetString("account"),
 	}
 	log.Printf("Client sending CA create event to endpoint: %s\n", viper.Get("endpoint"))
@@ -131,10 +129,10 @@ func(c *Client) NewCertificateAuthority() error {
 func (c *Client) NewIntermediateCertificateAuthority() error {
 	log.Printf("Createing new Intermediate CA with name %s\n", viper.GetString("certificate_authority"))
 	caEvent := types.CreateIntermediateAuthorityEvent{
-		Token: viper.GetString("token"),
-		CAName: viper.GetString("certificate_authority"),
+		Token:     viper.GetString("token"),
+		CAName:    viper.GetString("certificate_authority"),
 		InterName: viper.GetString("intermediate_certificate_authority"),
-		Account: viper.GetString("account"),
+		Account:   viper.GetString("account"),
 	}
 	log.Printf("Client sending Intermediate CA create event to endpoint: %s\n", viper.Get("endpoint"))
 	jsonBytes, err := json.Marshal(caEvent)
@@ -214,7 +212,7 @@ func (c *Client) NewCertPair() error {
 	log.Printf("TLS Context: %#v\n", certContext)
 
 	c.TLSContext = certContext
-	
+
 	return nil
 }
 
@@ -231,7 +229,6 @@ func (c *Client) NewTLSConfig() (*stdtls.Config, error) {
 		certPool.AddCert(cert)
 	}
 
-
 	config := &stdtls.Config{
 		NextProtos:               []string{"http/1.1"},
 		MinVersion:               stdtls.VersionTLS12,
@@ -246,11 +243,11 @@ func (c *Client) NewTLSConfig() (*stdtls.Config, error) {
 			stdtls.TLS_RSA_WITH_AES_256_GCM_SHA384,
 			stdtls.TLS_RSA_WITH_AES_256_CBC_SHA,
 		},
-		InsecureSkipVerify:       false,
-		RootCAs: certPool,
-		ClientCAs: certPool,
-		ClientAuth: stdtls.RequireAndVerifyClientCert,
-		Certificates: []stdtls.Certificate{c.TLSContext.KeyPair.TLSCertificate()},
+		InsecureSkipVerify: false,
+		RootCAs:            certPool,
+		ClientCAs:          certPool,
+		ClientAuth:         stdtls.RequireAndVerifyClientCert,
+		Certificates:       []stdtls.Certificate{c.TLSContext.KeyPair.TLSCertificate()},
 	}
 
 	return config, nil
@@ -273,4 +270,3 @@ func errorHandler(lambdaBody []byte) error {
 
 	return errors.New(lerror.Message)
 }
-

@@ -4,8 +4,7 @@ import (
 	"log"
 
 	//"github.com/simplepki/client/tls"
-	"github.com/simplepki/client"
-	_ "github.com/simplepki/client/config"
+	"github.com/simplepki/pki/client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -58,9 +57,9 @@ var newCmd = &cobra.Command{
 }
 
 var newCACmd = &cobra.Command{
-	Use:   "certificate-authority",
+	Use:     "certificate-authority",
 	Aliases: []string{"ca"},
-	Short: "generate new certificate authority",
+	Short:   "generate new certificate authority",
 	Run: func(cmd *cobra.Command, args []string) {
 		c := client.New()
 		err := c.NewCertificateAuthority()
@@ -71,9 +70,9 @@ var newCACmd = &cobra.Command{
 }
 
 var newInterCmd = &cobra.Command{
-	Use:   "intermediate-authority",
-	Aliases: []string{"intermediate","inter"},
-	Short: "generate new intermediate certificate authority",
+	Use:     "intermediate-authority",
+	Aliases: []string{"intermediate", "inter"},
+	Short:   "generate new intermediate certificate authority",
 	Run: func(cmd *cobra.Command, args []string) {
 		c := client.New()
 		err := c.NewIntermediateCertificateAuthority()
@@ -84,21 +83,21 @@ var newInterCmd = &cobra.Command{
 }
 
 var newCertCmd = &cobra.Command{
-	Use:   "certificate",
+	Use:     "certificate",
 	Aliases: []string{"cert"},
-	Short: "generate new certificate",
+	Short:   "generate new certificate",
 	Run: func(cmd *cobra.Command, args []string) {
 		c := client.New()
 		err := c.NewCertPair()
 		if err != nil {
 			log.Println(err.Error)
 		}
-		
+
 	},
 }
 
-var newTokenCmd = &cobra.Command {
-	Use: "token",
+var newTokenCmd = &cobra.Command{
+	Use:   "token",
 	Short: "generate new token for client use",
 	Run: func(cmd *cobra.Command, args []string) {
 		c := client.New()
@@ -110,4 +109,3 @@ var newTokenCmd = &cobra.Command {
 		log.Println(token)
 	},
 }
-

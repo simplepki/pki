@@ -7,7 +7,7 @@ import (
 	"crypto/x509/pkix"
 	"io/ioutil"
 
-	kp "github.com/simplepki/core/keypair"
+	kp "github.com/simplepki/pki/core/keypair"
 )
 
 func main() {

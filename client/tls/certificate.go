@@ -6,19 +6,20 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+
 	//"io/ioutil"
 	"log"
 	//"net/http"
 	"strings"
 
-	"github.com/simplepki/core/types"
-	"github.com/simplepki/core/keypair"
+	"github.com/simplepki/pki/core/keypair"
+	"github.com/simplepki/pki/core/types"
 )
 
 type TLSContext struct {
 	Id           string
 	Intermediate string
-	Account string
+	Account      string
 	KeyPair      keypair.KeyPair
 }
 
@@ -36,7 +37,7 @@ func NewKeyPair(account, intermediateChain, id string) *TLSContext {
 	}
 
 	newCert := &TLSContext{
-		Account: account,
+		Account:      account,
 		Id:           id,
 		Intermediate: intermediateString,
 		KeyPair:      kp,
@@ -62,9 +63,9 @@ func (c *TLSContext) CSRRequest(authtoken string, altNames []string) []byte {
 	jsonStruct := types.SignCertificateEvent{
 		CertName:   c.Id,
 		InterChain: c.Intermediate,
-		Account: c.Account,
-		CSR:  c.base64EncodedCSR(altNames),
-		Token: authtoken,
+		Account:    c.Account,
+		CSR:        c.base64EncodedCSR(altNames),
+		Token:      authtoken,
 	}
 
 	jsonBytes, err := json.Marshal(jsonStruct)

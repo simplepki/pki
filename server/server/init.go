@@ -1,8 +1,7 @@
 package server
 
 import (
-	"github.com/simplepki/server/config"
-	"github.com/simplepki/core"
+	"github.com/simplepki/pki/config"
 )
 
 func InitializeCA() error {
