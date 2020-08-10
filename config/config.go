@@ -1,8 +1,11 @@
 package config
 
 import (
-	"github.com/spf13/viper"
+	"errors"
+	"fmt"
+
 	"github.com/simplepki/pki/core/keypair"
+	"github.com/spf13/viper"
 )
 
 func init() {
@@ -14,7 +17,7 @@ func init() {
 	viper.AddConfigPath(".")
 
 	err := viper.ReadInConfig() // Find and read the config file
-	if err != nil { // Handle errors reading the config file
+	if err != nil {             // Handle errors reading the config file
 		panic(fmt.Errorf("Fatal error config file: %s \n", err))
 	}
 }
@@ -25,7 +28,7 @@ func IsCAEnabled() bool {
 
 func GetCAStoreType() string {
 	if viper.IsSet("ca.store") {
-		switch viper.GetString("ca.store"){
+		switch viper.GetString("ca.store") {
 		case "filesystem":
 			return "filesystem"
 		case "memory":
@@ -41,7 +44,7 @@ func GetCAStoreType() string {
 }
 
 func ShouldOverwriteCA() bool {
-	if viper.IsSet("ca.overwrite"){
+	if viper.IsSet("ca.overwrite") {
 		return viper.GetBool("ca.overwrite")
 	}
 
@@ -50,21 +53,21 @@ func ShouldOverwriteCA() bool {
 
 func GetCAKeyPairConfig() (*keypair.KeyPairConfig, error) {
 	config := &keypair.KeyPairConfig{}
-	if viper.IsSet("ca.memory"){
+	if viper.IsSet("ca.memory") {
 		memConfig := GetInMemoryKeyPairConfig("ca.memory")
 
 		config.KeyPairType = keypair.InMemory
 		config.InMemoryConfig = memConfig
-	} else if viper.IsSet("ca.filesystem"){
+	} else if viper.IsSet("ca.filesystem") {
 		fileConfig := &keypair.FileSystemKeyPairConfig{}
 
-		config.KeyPairType = keypair.FileSyste,
+		config.KeyPairType = keypair.FileSystem
 		config.FileSystemConfig = fileConfig
 	} else if viper.IsSet("ca.yubikey") {
 		yubiConfig := &keypair.YubikeyKeyPairConfig{}
 
-		config.KeyPairType = keypair.InMemory
-		config.InMemoryConfig = memConfig
+		config.KeyPairType = keypair.Yubikey
+		config.YubikeyConfig = yubiConfig
 	} else {
 		//default to memory
 		memConfig := &keypair.InMemoryKeyPairConfig{}
@@ -73,29 +76,28 @@ func GetCAKeyPairConfig() (*keypair.KeyPairConfig, error) {
 		config.InMemoryConfig = memConfig
 	}
 
-
 	return &keypair.KeyPairConfig{}, nil
 }
 
-func GetInMemoryKeyPairConfig (path string) *keypair.InMemoryKeyPairConfig {
+func GetInMemoryKeyPairConfig(path string) *keypair.InMemoryKeyPairConfig {
 	config := &keypair.InMemoryKeyPairConfig{}
 
-	if viper.IsSet(path +".algorithm") {
-		switch viper.IsSet(path +".algorithm"){
+	if viper.IsSet(path + ".algorithm") {
+		switch viper.GetString(path + ".algorithm") {
 		case "ec256":
-			config.KeyAgorithm = keypair.AlgorithmEC256
+			config.KeyAlgorithm = keypair.AlgorithmEC256
 		case "ec384":
-			config.KeyAgorithm = keypair.AlgorithmEC384
+			config.KeyAlgorithm = keypair.AlgorithmEC384
 		case "rsa2048":
-			config.KeyAgorithm = keypair.AlgorithmRSA2048
+			config.KeyAlgorithm = keypair.AlgorithmRSA2048
 		case "rsa4096":
-			config.KeyAgorithm = keypair.AlgorithmRSA4096
+			config.KeyAlgorithm = keypair.AlgorithmRSA4096
 		}
 	}
 	return config
 }
 
-func GetFileSystemKeyPairConfig (path string) *keypair.FileSystemKeyPairConfig {
+func GetFileSystemKeyPairConfig(path string) *keypair.FileSystemKeyPairConfig {
 	config := &keypair.FileSystemKeyPairConfig{}
 
 	/*if viper.IsSet(path +".algorithm") {
@@ -131,40 +133,48 @@ func GetFileSystemKeyPairConfig (path string) *keypair.FileSystemKeyPairConfig {
 	return config
 }
 
-func GetYubikeyKeyPairConfig (path string) *keypair.YubikeyKeyPairConfig {
+func GetYubikeyKeyPairConfig(path string) *keypair.YubikeyKeyPairConfig {
 	config := &keypair.YubikeyKeyPairConfig{}
 
 	if viper.IsSet(path + ".subject_name") {
 		config.CertSubjectName = viper.GetString(path + ".subject_name")
-	} 
+	}
 
 	if viper.IsSet(path + ".reset") {
 		config.Reset = viper.GetBool(path + ".reset")
 	}
 
-	if viper.IsSet(path+".yubikey_name") {
+	if viper.IsSet(path + ".yubikey_name") {
 		name := viper.GetString("")
 		config.Name = &name
 	}
 
-	if viper.IsSet(path+".yubikey_serial_number") {
-		num := viper.GetUint32(path+".yubikey_serial_number")
+	if viper.IsSet(path + ".yubikey_serial_number") {
+		num := viper.GetUint32(path + ".yubikey_serial_number")
 		config.Serial = &num
 	}
 
-	if viper.IsSet(path+".pin") {
-		pin := viper.GetString(path+".pin")
+	if viper.IsSet(path + ".pin") {
+		pin := viper.GetString(path + ".pin")
 		config.PIN = &pin
 	}
 
-	if viper.IsSet(path+".puk") {
-		puk := viper.GetString(path+".puk")
+	if viper.IsSet(path + ".puk") {
+		puk := viper.GetString(path + ".puk")
 		config.PUK = &puk
 	}
 
-	if viper.IsSet(path+".management_key") {
-		mk := viper.GetString(path+".management_key")
+	if viper.IsSet(path + ".management_key") {
+		mk := viper.GetString(path + ".management_key")
 		config.Base64ManagementKey = &mk
 	}
- 	return config
+	return config
+}
+
+func GetAuthProvider() (string, error) {
+	if !viper.IsSet("auth_provider") {
+		return "", errors.New("no auth_provider given")
+	}
+
+	return viper.GetString("auth_provider.type"), nil
 }

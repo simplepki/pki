@@ -21,9 +21,10 @@ type FileSystemKP struct {
 }
 
 type FileSystemKeyPairConfig struct {
-	CertFile  string
-	KeyFile   string
-	ChainFile string
+	KeyAlgorithm Algorithm
+	CertFile     string
+	KeyFile      string
+	ChainFile    string
 }
 
 // returns the expanded file path and whether or not the

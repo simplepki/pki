@@ -24,7 +24,9 @@ type InMemoryKP struct {
 	Chain        []*x509.Certificate
 }
 
-type InMemoryKeyPairConfig struct{}
+type InMemoryKeyPairConfig struct {
+	KeyAlgorithm Algorithm
+}
 
 type inMemoryMarshaller struct {
 	Cert  string
