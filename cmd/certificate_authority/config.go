@@ -15,5 +15,16 @@ var ShowCmd = &cobra.Command{
 		if !config.IsCAEnabled() {
 			logrus.Info("there is no current CA configuration")
 		}
+
+		logrus.Infof("CA Type: %v", config.GetCAStoreType())
+		logrus.Infof("CA Overwrite: %v", config.ShouldOverwriteCA())
+
+		kpConfig, configErr := config.GetCAKeyPairConfig()
+		if configErr != nil {
+			logrus.Errorf("Error reading CA config: %v", configErr.Error())
+			return
+		}
+
+		logrus.Infof("CA Common Name: %v", kpConfig.CommonName)
 	},
 }
