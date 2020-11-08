@@ -3,97 +3,124 @@ package config
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/simplepki/pki/core/keypair"
 	"github.com/spf13/viper"
 )
 
-func init() {
-	//from viper gh page
-	viper.SetConfigName("settings")
-	viper.AddConfigPath("/etc/simplepki/")
-	viper.AddConfigPath("/opt/simplepki/")
-	viper.AddConfigPath("$HOME/.simplepki/")
-	viper.AddConfigPath(".")
 
-	err := viper.ReadInConfig() // Find and read the config file
-	if err != nil {             // Handle errors reading the config file
-		panic(fmt.Errorf("Fatal error config file: %s \n", err))
-	}
-}
-
-func IsCAEnabled() bool {
-	return viper.IsSet("ca")
-}
-
-func GetCAStoreType() string {
-	if viper.IsSet("ca.store") {
-		switch viper.GetString("ca.store") {
-		case "filesystem":
-			return "filesystem"
-		case "memory":
-			return "memory"
-		case "yubikey":
-			return "yubikey"
-		default:
-			return "memory"
+func NewConfig(path string) (*viper.Viper, error) {
+	vConfig := viper.New()
+	if path != "" {
+		// read in specific file
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			retrun nil, errors.New("Error reading in config file: "+err.Error())
+		  }
+		configFile, err := os.Open(path)
+		if err != nil {
+			return nil, errors.New("Error reading in config file: "+err.Error())
 		}
-	} else {
+
+		switch filepath.Ext(path) {
+		case "json":
+			vConfig.SetConfigType("json")
+		case "yaml","yml":
+			vConfig.SetConfigType("yaml")
+		default:
+			return nil, errors.New("Error reading in config file: unknown extension")
+		}
+
+		vConfig.ReadConfig(configFile)
+		return vConfig, nil
+	}
+
+	//read in defaults
+	vConfig.SetConfigName("settings")
+	vConfig.AddConfigPath("/etc/simplepki/")
+	vConfig.AddConfigPath("/opt/simplepki/")
+	vConfig.AddConfigPath("$HOME/.simplepki/")
+	vConfig.AddConfigPath(".")
+
+	err := vConfig.ReadInConfig() // Find and read the config file
+	if err != nil {             // Handle errors reading the config file
+		return nil, fmt.Errorf("Error reading in config file: %s \n", err))
+	}
+
+	return vConfig, nil
+}
+
+func IsCAEnabled(v *viper.Viper) bool {
+	return v.IsSet("ca")
+}
+
+func GetCAStoreType(v *viper.Viper) string {
+	if v.IsSet("ca.memory") {
+		return "memory"
+	}
+
+	if v.IsSet("ca.filesystem") {
 		return "filesystem"
 	}
+
+	if v.IsSet("ca.yubikey") {
+		return "yubikey"
+	}
+	
+	return "memory"
 }
 
-func ShouldOverwriteCA() bool {
-	if viper.IsSet("ca.overwrite") {
-		return viper.GetBool("ca.overwrite")
+func ShouldOverwriteCA(v *viper.Viper) bool {
+	if v.IsSet("ca.overwrite") {
+		return v.GetBool("ca.overwrite")
 	}
 
 	return false
 }
 
-func GetCAKeyPairConfig() (*keypair.KeyPairConfig, error) {
+func GetCAKeyPairConfig(v *viper.Viper) (*keypair.KeyPairConfig, error) {
 	config := &keypair.KeyPairConfig{}
-	if viper.IsSet("ca.memory") {
+	switch GetCAStoreType(v) {
+	case "memory":
 		memConfig := GetInMemoryKeyPairConfig("ca.memory")
 
 		config.KeyPairType = keypair.InMemory
 		config.InMemoryConfig = memConfig
-	} else if viper.IsSet("ca.filesystem") {
+	case "filesystem":
 		fileConfig := &keypair.FileSystemKeyPairConfig{}
 
 		config.KeyPairType = keypair.FileSystem
 		config.FileSystemConfig = fileConfig
-	} else if viper.IsSet("ca.yubikey") {
+	case "yubikey":
 		yubiConfig := &keypair.YubikeyKeyPairConfig{}
 
 		config.KeyPairType = keypair.Yubikey
 		config.YubikeyConfig = yubiConfig
-	} else {
-		//default to memory
-		memConfig := &keypair.InMemoryKeyPairConfig{}
-
-		config.KeyPairType = keypair.InMemory
-		config.InMemoryConfig = memConfig
 	}
 
-	return &keypair.KeyPairConfig{}, nil
+	return config, nil
 }
 
-func GetInMemoryKeyPairConfig(path string) *keypair.InMemoryKeyPairConfig {
-	config := &keypair.InMemoryKeyPairConfig{}
-
-	if viper.IsSet(path + ".algorithm") {
+func getKeyAlgorithm(path string, v *viper.Viper) keypair.Algorithm {
+	if vipver.IsSet(path + ".algorithm") {
 		switch viper.GetString(path + ".algorithm") {
 		case "ec256":
-			config.KeyAlgorithm = keypair.AlgorithmEC256
+			return keypair.AlgorithmEC256
 		case "ec384":
-			config.KeyAlgorithm = keypair.AlgorithmEC384
+			return keypair.AlgorithmEC384
 		case "rsa2048":
-			config.KeyAlgorithm = keypair.AlgorithmRSA2048
+			return keypair.AlgorithmRSA2048
 		case "rsa4096":
-			config.KeyAlgorithm = keypair.AlgorithmRSA4096
+			return keypair.AlgorithmRSA4096
 		}
+	} else {
+		return keypair.AlgorithmEC384
 	}
+}
+func GetInMemoryKeyPairConfig(path string, v *viper.Viper) *keypair.InMemoryKeyPairConfig {
+	config := &keypair.InMemoryKeyPairConfig{}
+	config.KeyAlgorithm = getKeyAlgorithm(path, v)
+	
 	return config
 }
 
