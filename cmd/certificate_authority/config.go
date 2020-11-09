@@ -6,20 +6,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var configFile string
+
+func init() {
+	ShowCmd.Flags().StringVarP(&configFile, "config-file", "f", "", "config file to use")
+}
+
 var ShowCmd = &cobra.Command{
 	Use:     "show-config",
 	Aliases: []string{"show", "config"},
 	Short:   "show current CA configurations",
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("running certificate-authority show-config command")
-		if !config.IsCAEnabled() {
+		vconfig, err := config.NewConfig(configFile)
+		if err != nil {
+			logrus.Fatal("Error reading in config file: " + err.Error())
+		}
+		if !config.IsCAEnabled(vconfig) {
 			logrus.Info("there is no current CA configuration")
 		}
 
-		logrus.Infof("CA Type: %v", config.GetCAStoreType())
-		logrus.Infof("CA Overwrite: %v", config.ShouldOverwriteCA())
+		logrus.Infof("CA Type: %v", config.GetCAStoreType(vconfig))
+		logrus.Infof("CA Overwrite: %v", config.ShouldOverwriteCA(vconfig))
 
-		kpConfig, configErr := config.GetCAKeyPairConfig()
+		kpConfig, configErr := config.GetCAKeyPairConfig(vconfig)
 		if configErr != nil {
 			logrus.Errorf("Error reading CA config: %v", configErr.Error())
 			return

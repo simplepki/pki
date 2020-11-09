@@ -4,31 +4,31 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/simplepki/pki/core/keypair"
 	"github.com/spf13/viper"
 )
-
 
 func NewConfig(path string) (*viper.Viper, error) {
 	vConfig := viper.New()
 	if path != "" {
 		// read in specific file
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			retrun nil, errors.New("Error reading in config file: "+err.Error())
-		  }
+			return nil, errors.New("Error reading in config file: " + err.Error())
+		}
 		configFile, err := os.Open(path)
 		if err != nil {
-			return nil, errors.New("Error reading in config file: "+err.Error())
+			return nil, errors.New("Error reading in config file: " + err.Error())
 		}
 
 		switch filepath.Ext(path) {
-		case "json":
+		case ".json":
 			vConfig.SetConfigType("json")
-		case "yaml","yml":
+		case ".yaml", ".yml":
 			vConfig.SetConfigType("yaml")
 		default:
-			return nil, errors.New("Error reading in config file: unknown extension")
+			return nil, errors.New("Error reading in config file: unknown extension (" + filepath.Ext(path) + ")")
 		}
 
 		vConfig.ReadConfig(configFile)
@@ -43,8 +43,8 @@ func NewConfig(path string) (*viper.Viper, error) {
 	vConfig.AddConfigPath(".")
 
 	err := vConfig.ReadInConfig() // Find and read the config file
-	if err != nil {             // Handle errors reading the config file
-		return nil, fmt.Errorf("Error reading in config file: %s \n", err))
+	if err != nil {               // Handle errors reading the config file
+		return nil, fmt.Errorf("Error reading in config file: %s \n", err.Error())
 	}
 
 	return vConfig, nil
@@ -66,7 +66,7 @@ func GetCAStoreType(v *viper.Viper) string {
 	if v.IsSet("ca.yubikey") {
 		return "yubikey"
 	}
-	
+
 	return "memory"
 }
 
@@ -80,20 +80,24 @@ func ShouldOverwriteCA(v *viper.Viper) bool {
 
 func GetCAKeyPairConfig(v *viper.Viper) (*keypair.KeyPairConfig, error) {
 	config := &keypair.KeyPairConfig{}
+	config.CommonName = getCommonName("ca", v)
 	switch GetCAStoreType(v) {
 	case "memory":
-		memConfig := GetInMemoryKeyPairConfig("ca.memory")
+		memConfig := GetInMemoryKeyPairConfig("ca.memory", v)
+		config.KeyAlgorithm = getKeyAlgorithm("ca.memory", v)
 
 		config.KeyPairType = keypair.InMemory
 		config.InMemoryConfig = memConfig
 	case "filesystem":
 		fileConfig := &keypair.FileSystemKeyPairConfig{}
 
+		config.KeyAlgorithm = getKeyAlgorithm("ca.filesystem", v)
 		config.KeyPairType = keypair.FileSystem
 		config.FileSystemConfig = fileConfig
 	case "yubikey":
 		yubiConfig := &keypair.YubikeyKeyPairConfig{}
 
+		config.KeyAlgorithm = getKeyAlgorithm("ca.yubikey", v)
 		config.KeyPairType = keypair.Yubikey
 		config.YubikeyConfig = yubiConfig
 	}
@@ -102,8 +106,8 @@ func GetCAKeyPairConfig(v *viper.Viper) (*keypair.KeyPairConfig, error) {
 }
 
 func getKeyAlgorithm(path string, v *viper.Viper) keypair.Algorithm {
-	if vipver.IsSet(path + ".algorithm") {
-		switch viper.GetString(path + ".algorithm") {
+	if v.IsSet(path + ".algorithm") {
+		switch v.GetString(path + ".algorithm") {
 		case "ec256":
 			return keypair.AlgorithmEC256
 		case "ec384":
@@ -112,33 +116,32 @@ func getKeyAlgorithm(path string, v *viper.Viper) keypair.Algorithm {
 			return keypair.AlgorithmRSA2048
 		case "rsa4096":
 			return keypair.AlgorithmRSA4096
+		default:
+			return keypair.AlgorithmEC384
 		}
 	} else {
 		return keypair.AlgorithmEC384
 	}
 }
+
+func getCommonName(path string, v *viper.Viper) string {
+	if v.IsSet(path + ".common_name") {
+		return v.GetString(path + ".common_name")
+	} else {
+		return ""
+	}
+}
+
 func GetInMemoryKeyPairConfig(path string, v *viper.Viper) *keypair.InMemoryKeyPairConfig {
 	config := &keypair.InMemoryKeyPairConfig{}
 	config.KeyAlgorithm = getKeyAlgorithm(path, v)
-	
+
 	return config
 }
 
-func GetFileSystemKeyPairConfig(path string) *keypair.FileSystemKeyPairConfig {
+func GetFileSystemKeyPairConfig(path string, v *viper.Viper) *keypair.FileSystemKeyPairConfig {
 	config := &keypair.FileSystemKeyPairConfig{}
-
-	/*if viper.IsSet(path +".algorithm") {
-		switch viper.IsSet(path +".algorithm"){
-		case "ec256":
-			config.KeyAgorithm = keypair.AlgorithmEC256
-		case "ec384":
-			config.KeyAgorithm = keypair.AlgorithmEC384
-		case "rsa2048":
-			config.KeyAgorithm = keypair.AlgorithmRSA2048
-		case "rsa4096":
-			config.KeyAgorithm = keypair.AlgorithmRSA4096
-		}
-	}*/
+	config.KeyAlgorithm = getKeyAlgorithm(path, v)
 
 	if viper.IsSet(path + ".key_file") {
 		config.KeyFile = viper.GetString(path + ".key_file")
@@ -160,39 +163,39 @@ func GetFileSystemKeyPairConfig(path string) *keypair.FileSystemKeyPairConfig {
 	return config
 }
 
-func GetYubikeyKeyPairConfig(path string) *keypair.YubikeyKeyPairConfig {
+func GetYubikeyKeyPairConfig(path string, v *viper.Viper) *keypair.YubikeyKeyPairConfig {
 	config := &keypair.YubikeyKeyPairConfig{}
 
-	if viper.IsSet(path + ".subject_name") {
-		config.CertSubjectName = viper.GetString(path + ".subject_name")
+	if v.IsSet(path + ".subject_name") {
+		config.CertSubjectName = v.GetString(path + ".subject_name")
 	}
 
-	if viper.IsSet(path + ".reset") {
-		config.Reset = viper.GetBool(path + ".reset")
+	if v.IsSet(path + ".reset") {
+		config.Reset = v.GetBool(path + ".reset")
 	}
 
-	if viper.IsSet(path + ".yubikey_name") {
-		name := viper.GetString("")
+	if v.IsSet(path + ".yubikey_name") {
+		name := v.GetString("")
 		config.Name = &name
 	}
 
-	if viper.IsSet(path + ".yubikey_serial_number") {
-		num := viper.GetUint32(path + ".yubikey_serial_number")
+	if v.IsSet(path + ".yubikey_serial_number") {
+		num := v.GetUint32(path + ".yubikey_serial_number")
 		config.Serial = &num
 	}
 
-	if viper.IsSet(path + ".pin") {
-		pin := viper.GetString(path + ".pin")
+	if v.IsSet(path + ".pin") {
+		pin := v.GetString(path + ".pin")
 		config.PIN = &pin
 	}
 
-	if viper.IsSet(path + ".puk") {
-		puk := viper.GetString(path + ".puk")
+	if v.IsSet(path + ".puk") {
+		puk := v.GetString(path + ".puk")
 		config.PUK = &puk
 	}
 
-	if viper.IsSet(path + ".management_key") {
-		mk := viper.GetString(path + ".management_key")
+	if v.IsSet(path + ".management_key") {
+		mk := v.GetString(path + ".management_key")
 		config.Base64ManagementKey = &mk
 	}
 	return config
