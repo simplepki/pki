@@ -7,15 +7,15 @@ import (
 )
 
 func init() {
-	ShowCmd.Flags().StringVarP(&configFile, "config-file", "f", "", "config file to use")
+	InitCmd.Flags().StringVarP(&configFile, "config-file", "f", "", "config file to use")
 }
 
-var ShowCmd = &cobra.Command{
-	Use:     "show-config",
-	Aliases: []string{"show", "config"},
-	Short:   "show current CA configurations",
+var InitCmd = &cobra.Command{
+	Use:     "initialize",
+	Aliases: []string{"init", "new"},
+	Short:   "configure certificate authority",
 	Run: func(cmd *cobra.Command, args []string) {
-		logrus.Debug("running certificate-authority show-config command")
+		logrus.Debug("running certificate-authority initialize command")
 		vconfig, err := config.NewConfig(configFile)
 		if err != nil {
 			logrus.Fatal("Error reading in config file: " + err.Error())

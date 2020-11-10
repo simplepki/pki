@@ -50,20 +50,16 @@ func NewConfig(path string) (*viper.Viper, error) {
 	return vConfig, nil
 }
 
-func IsCAEnabled(v *viper.Viper) bool {
-	return v.IsSet("ca")
-}
-
 func GetCAStoreType(v *viper.Viper) string {
-	if v.IsSet("ca.memory") {
+	if v.IsSet("memory") {
 		return "memory"
 	}
 
-	if v.IsSet("ca.filesystem") {
+	if v.IsSet("filesystem") {
 		return "filesystem"
 	}
 
-	if v.IsSet("ca.yubikey") {
+	if v.IsSet("yubikey") {
 		return "yubikey"
 	}
 
@@ -71,8 +67,8 @@ func GetCAStoreType(v *viper.Viper) string {
 }
 
 func ShouldOverwriteCA(v *viper.Viper) bool {
-	if v.IsSet("ca.overwrite") {
-		return v.GetBool("ca.overwrite")
+	if v.IsSet("overwrite") {
+		return v.GetBool("overwrite")
 	}
 
 	return false
@@ -80,24 +76,24 @@ func ShouldOverwriteCA(v *viper.Viper) bool {
 
 func GetCAKeyPairConfig(v *viper.Viper) (*keypair.KeyPairConfig, error) {
 	config := &keypair.KeyPairConfig{}
-	config.CommonName = getCommonName("ca", v)
+	config.CommonName = getCommonName(v)
 	switch GetCAStoreType(v) {
 	case "memory":
-		memConfig := GetInMemoryKeyPairConfig("ca.memory", v)
-		config.KeyAlgorithm = getKeyAlgorithm("ca.memory", v)
+		memConfig := GetInMemoryKeyPairConfig("memory", v)
+		config.KeyAlgorithm = getKeyAlgorithm(v)
 
 		config.KeyPairType = keypair.InMemory
 		config.InMemoryConfig = memConfig
 	case "filesystem":
 		fileConfig := &keypair.FileSystemKeyPairConfig{}
 
-		config.KeyAlgorithm = getKeyAlgorithm("ca.filesystem", v)
+		config.KeyAlgorithm = getKeyAlgorithm(v)
 		config.KeyPairType = keypair.FileSystem
 		config.FileSystemConfig = fileConfig
 	case "yubikey":
 		yubiConfig := &keypair.YubikeyKeyPairConfig{}
 
-		config.KeyAlgorithm = getKeyAlgorithm("ca.yubikey", v)
+		config.KeyAlgorithm = getKeyAlgorithm(v)
 		config.KeyPairType = keypair.Yubikey
 		config.YubikeyConfig = yubiConfig
 	}
@@ -105,9 +101,9 @@ func GetCAKeyPairConfig(v *viper.Viper) (*keypair.KeyPairConfig, error) {
 	return config, nil
 }
 
-func getKeyAlgorithm(path string, v *viper.Viper) keypair.Algorithm {
-	if v.IsSet(path + ".algorithm") {
-		switch v.GetString(path + ".algorithm") {
+func getKeyAlgorithm(v *viper.Viper) keypair.Algorithm {
+	if v.IsSet("algorithm") {
+		switch v.GetString("algorithm") {
 		case "ec256":
 			return keypair.AlgorithmEC256
 		case "ec384":
@@ -124,9 +120,9 @@ func getKeyAlgorithm(path string, v *viper.Viper) keypair.Algorithm {
 	}
 }
 
-func getCommonName(path string, v *viper.Viper) string {
-	if v.IsSet(path + ".common_name") {
-		return v.GetString(path + ".common_name")
+func getCommonName(v *viper.Viper) string {
+	if v.IsSet("common_name") {
+		return v.GetString("common_name")
 	} else {
 		return ""
 	}
@@ -134,29 +130,29 @@ func getCommonName(path string, v *viper.Viper) string {
 
 func GetInMemoryKeyPairConfig(path string, v *viper.Viper) *keypair.InMemoryKeyPairConfig {
 	config := &keypair.InMemoryKeyPairConfig{}
-	config.KeyAlgorithm = getKeyAlgorithm(path, v)
+	config.KeyAlgorithm = getKeyAlgorithm(v)
 
 	return config
 }
 
-func GetFileSystemKeyPairConfig(path string, v *viper.Viper) *keypair.FileSystemKeyPairConfig {
+func GetFileSystemKeyPairConfig(v *viper.Viper) *keypair.FileSystemKeyPairConfig {
 	config := &keypair.FileSystemKeyPairConfig{}
-	config.KeyAlgorithm = getKeyAlgorithm(path, v)
+	config.KeyAlgorithm = getKeyAlgorithm(v)
 
-	if viper.IsSet(path + ".key_file") {
-		config.KeyFile = viper.GetString(path + ".key_file")
+	if viper.IsSet("filesystem.key_file") {
+		config.KeyFile = viper.GetString("filesystem.key_file")
 	} else {
 		config.KeyFile = "./key.pem"
 	}
 
-	if viper.IsSet(path + ".cert_file") {
-		config.KeyFile = viper.GetString(path + ".cert_file")
+	if viper.IsSet("filesystem.cert_file") {
+		config.KeyFile = viper.GetString("filesystem.cert_file")
 	} else {
 		config.KeyFile = "./cert.pem"
 	}
 
-	if viper.IsSet(path + ".chain_file") {
-		config.KeyFile = viper.GetString(path + ".chain_file")
+	if viper.IsSet("filesystem.chain_file") {
+		config.KeyFile = viper.GetString("filesystem.chain_file")
 	} else {
 		config.KeyFile = "./chain.pem"
 	}

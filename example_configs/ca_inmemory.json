@@ -1,8 +1,5 @@
 {
-    "ca": {
-        "memory": {
-            "algorithm": "ec384"
-        },
+        "memory": {},
+        "algorithm": "ec384",
         "common_name": "testCA"
-    }
 }
