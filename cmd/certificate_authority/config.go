@@ -24,7 +24,7 @@ var ShowCmd = &cobra.Command{
 		logrus.Infof("CA Type: %v", config.GetCAStoreType(vconfig))
 		logrus.Infof("CA Overwrite: %v", config.ShouldOverwriteCA(vconfig))
 
-		kpConfig, configErr := config.GetCAKeyPairConfig(vconfig)
+		kpConfig, configErr := config.GetKeyPairConfig(vconfig)
 		if configErr != nil {
 			logrus.Errorf("Error reading CA config: %v", configErr.Error())
 			return

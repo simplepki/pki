@@ -2,6 +2,7 @@ package ca
 
 import (
 	"github.com/simplepki/pki/config"
+	"github.com/simplepki/pki/core/keypair"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -20,16 +21,16 @@ var InitCmd = &cobra.Command{
 		if err != nil {
 			logrus.Fatal("Error reading in config file: " + err.Error())
 		}
-
-		logrus.Infof("CA Type: %v", config.GetCAStoreType(vconfig))
-		logrus.Infof("CA Overwrite: %v", config.ShouldOverwriteCA(vconfig))
-
-		kpConfig, configErr := config.GetCAKeyPairConfig(vconfig)
-		if configErr != nil {
-			logrus.Errorf("Error reading CA config: %v", configErr.Error())
-			return
+		kpconfig, err := config.GetKeyPairConfig(vconfig)
+		if err != nil {
+			logrus.Fatal("Error getting keypair config: " + err.Error())
 		}
 
-		logrus.Infof("CA Common Name: %v", kpConfig.CommonName)
+		initKP, err := keypair.NewKeyPair(kpconfig)
+		if err != nil {
+			logrus.Fatal("Error initializing keypair: " + err.Error())
+		}
+
+		logrus.Infof("kp: %#v", initKP)
 	},
 }

@@ -88,3 +88,11 @@ type KeyPair interface {
 	ChainPEM() []byte
 	Close() error
 }
+
+func SelfSignKeyPair(kp KeyPair) error {
+	return nil
+}
+
+func SignKeyPairWithKeyPair(authority, client KeyPair) error {
+	return nil
+}

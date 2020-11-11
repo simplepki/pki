@@ -74,7 +74,7 @@ func ShouldOverwriteCA(v *viper.Viper) bool {
 	return false
 }
 
-func GetCAKeyPairConfig(v *viper.Viper) (*keypair.KeyPairConfig, error) {
+func GetKeyPairConfig(v *viper.Viper) (*keypair.KeyPairConfig, error) {
 	config := &keypair.KeyPairConfig{}
 	config.CommonName = getCommonName(v)
 	switch GetCAStoreType(v) {
