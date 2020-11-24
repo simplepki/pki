@@ -89,10 +89,48 @@ type KeyPair interface {
 	Close() error
 }
 
-func SelfSignKeyPair(kp KeyPair) error {
-	return nil
+func SelfSignKeyPair(kp KeyPair, commonName string, altNames []string, isCA bool) error {
+	cn := pkix.Name{
+		CommonName: commonName,
+	}
+
+	csrBytes, err := kp.CreateCSR(cn, altNames)
+	if err != nil {
+		return err
+	}
+
+	csrParsed, err := x509.ParseCertificateRequest(csrBytes)
+	if err != nil {
+		return err
+	}
+
+	signedCert, err := kp.IssueCertificate(csrParsed, isCA, true)
+	if err != nil {
+		return err
+	}
+
+	return kp.ImportCertificate(signedCert)
 }
 
-func SignKeyPairWithKeyPair(authority, client KeyPair) error {
-	return nil
+func SignKeyPairWithKeyPair(authority, client KeyPair, commonName string, altNames []string, isCA bool) error {
+	cn := pkix.Name{
+		CommonName: commonName,
+	}
+
+	csrBytes, err := client.CreateCSR(cn, altNames)
+	if err != nil {
+		return err
+	}
+
+	csrParsed, err := x509.ParseCertificateRequest(csrBytes)
+	if err != nil {
+		return err
+	}
+
+	signedCert, err := authority.IssueCertificate(csrParsed, isCA, false)
+	if err != nil {
+		return err
+	}
+
+	return client.ImportCertificate(signedCert)
 }
