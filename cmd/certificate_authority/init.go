@@ -31,6 +31,11 @@ var InitCmd = &cobra.Command{
 			logrus.Fatal("Error initializing keypair: " + err.Error())
 		}
 
+		keypair.SelfSignKeyPair(initKP, kpconfig.CommonName, []string{}, true)
 		logrus.Infof("kp: %#v", initKP)
+
+		if cError := initKP.Close(); cError != nil {
+			logrus.Fatal(err.Error())
+		}
 	},
 }

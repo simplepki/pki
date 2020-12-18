@@ -1,0 +1,9 @@
+{
+    "filesystem": {
+        "key_file": "/tmp/key.pem",
+        "cert_file": "/tmp/cert.pem",
+        "chain_file": "/tmp/chain.pem"
+    },
+    "algorithm": "ec384",
+    "common_name": "testCA"
+}
