@@ -4,15 +4,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/pem"
-	"errors"
+	"fmt"
 	"io/ioutil"
-	"log"
+
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/mitchellh/go-homedir"
+	log "github.com/sirupsen/logrus"
 )
 
 type FileSystemKP struct {
@@ -27,132 +26,162 @@ type FileSystemKeyPairConfig struct {
 	ChainFile    string
 }
 
-// returns the expanded file path and whether or not the
-// file exists
-//
-// if there is an internal error it will return "", false
-func expandAndCheck(path string) (string, bool) {
+// expands file path
+func expandFilePath(path string) (string, error) {
 	var expandedPath string
 	expandedPath, err := homedir.Expand(path)
 	if err != nil {
-		return "", false
+		return "", err
 	}
 
 	expandedPath, err = filepath.Abs(expandedPath)
 	if err != nil {
-		return "", false
+		return "", err
 	}
 
-	fileInfo, err := os.Stat(expandedPath)
-
-	if os.IsNotExist(err) {
-		return expandedPath, false
-	}
-
-	if fileInfo.IsDir() {
-		return "", false
-	}
-
-	return expandedPath, true
-
+	return expandedPath, nil
 }
 
-// InMemoryKP Helpers
-func toFile(config *FileSystemKeyPairConfig, kp *InMemoryKP) error {
-	// cert
-	expandedCertFile, _ := expandAndCheck(config.CertFile)
-	err := ioutil.WriteFile(expandedCertFile, kp.CertificatePEM(), 0644)
-	if err != nil {
-		return err
-	}
-	// key
-	expandedKeyFile, _ := expandAndCheck(config.KeyFile)
-	err = ioutil.WriteFile(expandedKeyFile, kp.KeyPEM(), 0644)
-	if err != nil {
-		return err
-	}
-
-	// chain
-	expandedChainFile, _ := expandAndCheck(config.ChainFile)
-	err = ioutil.WriteFile(expandedChainFile, kp.ChainPEM(), 0644)
-	if err != nil {
+func createFilePath(path string) error {
+	if err := os.MkdirAll(path, 0755); err != nil {
 		return err
 	}
 	return nil
 }
 
+// returns the expanded file path and whether or not the
+// file exists
+//
+// if there is an internal error it will return "", false
+func filePathCheck(path string) error {
+
+	fileInfo, err := os.Stat(path)
+
+	if os.IsNotExist(err) {
+		return err
+	}
+
+	if fileInfo.IsDir() {
+		return fmt.Errorf("filepath (%s) is a directory", path)
+	}
+
+	return nil
+}
+
+// InMemoryKP Helpers
+func toFile(config *FileSystemKeyPairConfig, kp *InMemoryKP) error {
+	// cert
+	expandedCertFile, expandErr := expandFilePath(config.CertFile)
+	if expandErr != nil {
+		log.Warnf("error expanding path: %s", expandErr.Error())
+		return expandErr
+	}
+
+	checkErr := filePathCheck(expandedCertFile)
+	if checkErr != nil {
+		log.Warnf("error checking path: %s", checkErr.Error())
+		mkdirErr := createFilePath(expandedCertFile)
+		if mkdirErr != nil {
+			return mkdirErr
+		}
+	}
+
+	err := ioutil.WriteFile(expandedCertFile, kp.CertificatePEM(), 0644)
+	if err != nil {
+		return err
+	}
+	/*
+		// key
+		expandedKeyFile, _ := expandAndCheck(config.KeyFile)
+		err = ioutil.WriteFile(expandedKeyFile, kp.KeyPEM(), 0644)
+		if err != nil {
+			return err
+		}
+
+		// chain
+		expandedChainFile, _ := expandAndCheck(config.ChainFile)
+		err = ioutil.WriteFile(expandedChainFile, kp.ChainPEM(), 0644)
+		if err != nil {
+			return err
+		}
+	*/
+	return nil
+}
+
 func fromFile(config *FileSystemKeyPairConfig) (*InMemoryKP, error) {
 	kp := &InMemoryKP{}
-	// cert
-	expandedCertFile, certFileExists := expandAndCheck(config.CertFile)
-	if !certFileExists {
-		return nil, errors.New("given certificate file does not exist")
-	}
-	certPEMBytes, err := ioutil.ReadFile(expandedCertFile)
-	if err != nil {
-		return nil, err
-	}
-
-	certPEM, _ := pem.Decode(certPEMBytes)
-	err = kp.ImportCertificate(certPEM.Bytes)
-	if err != nil {
-		return nil, err
-	}
-	// key
-	expandedKeyFile, keyFileExists := expandAndCheck(config.KeyFile)
-	if !keyFileExists {
-		return nil, errors.New("given key file does not exist")
-	}
-	keyPEMBytes, err := ioutil.ReadFile(expandedKeyFile)
-	if err != nil {
-		return nil, err
-	}
-
-	keyPEM, _ := pem.Decode(keyPEMBytes)
-	switch strings.Contains(keyPEM.Type, "RSA") {
-	case true:
-		key, err := x509.ParsePKCS1PrivateKey(keyPEM.Bytes)
+	/*
+		// cert
+		expandedCertFile, certFileExists := expandAndCheck(config.CertFile)
+		if !certFileExists {
+			return nil, errors.New("given certificate file does not exist")
+		}
+		certPEMBytes, err := ioutil.ReadFile(expandedCertFile)
 		if err != nil {
 			return nil, err
 		}
-		kp.PrivateKey = key
-	case false:
-		key, err := x509.ParseECPrivateKey(keyPEM.Bytes)
+
+		certPEM, _ := pem.Decode(certPEMBytes)
+		err = kp.ImportCertificate(certPEM.Bytes)
 		if err != nil {
 			return nil, err
 		}
-		kp.PrivateKey = key
-	}
-	// chain
-	expandedChainFile, ChainFileExists := expandAndCheck(config.ChainFile)
-	if !ChainFileExists {
-		return nil, errors.New("given chain file does not exist")
-	}
-
-	chainPEMBytes, err := ioutil.ReadFile(expandedChainFile)
-	if err != nil {
-		return nil, err
-	}
-
-	chain := []*x509.Certificate{}
-	restPEMBytes := chainPEMBytes
-	var currentBlock *pem.Block = nil
-	for true {
-		currentBlock, restPEMBytes = pem.Decode(restPEMBytes)
-		if currentBlock == nil {
-			log.Println("no more PEM block found in chain file")
-			break
+		// key
+		expandedKeyFile, keyFileExists := expandAndCheck(config.KeyFile)
+		if !keyFileExists {
+			return nil, errors.New("given key file does not exist")
 		}
-		log.Println("parsing pem block in chain file")
-		chainCert, err := x509.ParseCertificate(currentBlock.Bytes)
+		keyPEMBytes, err := ioutil.ReadFile(expandedKeyFile)
 		if err != nil {
-			log.Printf("error parsing chain cert: %#v\n", err.Error())
-			break
+			return nil, err
 		}
-		chain = append(chain, chainCert)
-	}
 
-	kp.Chain = chain
+		keyPEM, _ := pem.Decode(keyPEMBytes)
+		switch strings.Contains(keyPEM.Type, "RSA") {
+		case true:
+			key, err := x509.ParsePKCS1PrivateKey(keyPEM.Bytes)
+			if err != nil {
+				return nil, err
+			}
+			kp.PrivateKey = key
+		case false:
+			key, err := x509.ParseECPrivateKey(keyPEM.Bytes)
+			if err != nil {
+				return nil, err
+			}
+			kp.PrivateKey = key
+		}
+		// chain
+		expandedChainFile, ChainFileExists := expandAndCheck(config.ChainFile)
+		if !ChainFileExists {
+			return nil, errors.New("given chain file does not exist")
+		}
+
+		chainPEMBytes, err := ioutil.ReadFile(expandedChainFile)
+		if err != nil {
+			return nil, err
+		}
+
+		chain := []*x509.Certificate{}
+		restPEMBytes := chainPEMBytes
+		var currentBlock *pem.Block = nil
+		for true {
+			currentBlock, restPEMBytes = pem.Decode(restPEMBytes)
+			if currentBlock == nil {
+				log.Println("no more PEM block found in chain file")
+				break
+			}
+			log.Println("parsing pem block in chain file")
+			chainCert, err := x509.ParseCertificate(currentBlock.Bytes)
+			if err != nil {
+				log.Printf("error parsing chain cert: %#v\n", err.Error())
+				break
+			}
+			chain = append(chain, chainCert)
+		}
+
+		kp.Chain = chain
+	*/
 
 	return kp, nil
 }
@@ -233,6 +262,9 @@ func (fs *FileSystemKP) ChainPEM() []byte {
 }
 
 func (fs *FileSystemKP) Close() error {
-	toFile(fs.Config, fs.KP)
+	fileError := toFile(fs.Config, fs.KP)
+	if fileError != nil {
+		return fileError
+	}
 	return fs.KP.Close()
 }

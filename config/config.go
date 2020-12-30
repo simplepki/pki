@@ -85,7 +85,21 @@ func GetKeyPairConfig(v *viper.Viper) (*keypair.KeyPairConfig, error) {
 		config.KeyPairType = keypair.InMemory
 		config.InMemoryConfig = memConfig
 	case "filesystem":
-		fileConfig := &keypair.FileSystemKeyPairConfig{}
+		fileConfig := &keypair.FileSystemKeyPairConfig{
+			KeyAlgorithm: getKeyAlgorithm(v),
+		}
+
+		if v.IsSet("filesystem.key_file") {
+			fileConfig.CertFile = v.GetString("filesystem.key_file")
+		}
+
+		if v.IsSet("filesystem.cert_file") {
+			fileConfig.CertFile = v.GetString("filesystem.cert_file")
+		}
+
+		if v.IsSet("filesystem.chain_file") {
+			fileConfig.CertFile = v.GetString("filesystem.chain_file")
+		}
 
 		config.KeyAlgorithm = getKeyAlgorithm(v)
 		config.KeyPairType = keypair.FileSystem

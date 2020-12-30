@@ -8,6 +8,7 @@ import (
 )
 
 func init() {
+	logrus.SetLevel(logrus.DebugLevel)
 	InitCmd.Flags().StringVarP(&configFile, "config-file", "f", "", "config file to use")
 }
 
@@ -21,10 +22,12 @@ var InitCmd = &cobra.Command{
 		if err != nil {
 			logrus.Fatal("Error reading in config file: " + err.Error())
 		}
+		logrus.Debugf("read in config: %#v", vconfig)
 		kpconfig, err := config.GetKeyPairConfig(vconfig)
 		if err != nil {
 			logrus.Fatal("Error getting keypair config: " + err.Error())
 		}
+		logrus.Debugf("reas in kp config: %#v", kpconfig)
 
 		initKP, err := keypair.NewKeyPair(kpconfig)
 		if err != nil {
@@ -35,7 +38,7 @@ var InitCmd = &cobra.Command{
 		logrus.Infof("kp: %#v", initKP)
 
 		if cError := initKP.Close(); cError != nil {
-			logrus.Fatal(err.Error())
+			logrus.Fatal(cError.Error())
 		}
 	},
 }
