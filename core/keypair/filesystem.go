@@ -4,8 +4,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"os"
 	"path/filepath"
@@ -43,7 +45,8 @@ func expandFilePath(path string) (string, error) {
 }
 
 func createFilePath(path string) error {
-	if err := os.MkdirAll(path, 0755); err != nil {
+	dirPath, _ := filepath.Split(path)
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
 		return err
 	}
 	return nil
@@ -68,48 +71,108 @@ func filePathCheck(path string) error {
 	return nil
 }
 
-// InMemoryKP Helpers
-func toFile(config *FileSystemKeyPairConfig, kp *InMemoryKP) error {
-	// cert
-	expandedCertFile, expandErr := expandFilePath(config.CertFile)
+func writeToFile(path string, content []byte) error {
+	expandedFile, expandErr := expandFilePath(path)
 	if expandErr != nil {
 		log.Warnf("error expanding path: %s", expandErr.Error())
 		return expandErr
 	}
 
-	checkErr := filePathCheck(expandedCertFile)
+	checkErr := filePathCheck(expandedFile)
 	if checkErr != nil {
 		log.Warnf("error checking path: %s", checkErr.Error())
-		mkdirErr := createFilePath(expandedCertFile)
+		mkdirErr := createFilePath(expandedFile)
 		if mkdirErr != nil {
 			return mkdirErr
 		}
 	}
 
-	err := ioutil.WriteFile(expandedCertFile, kp.CertificatePEM(), 0644)
+	err := ioutil.WriteFile(expandedFile, content, 0644)
 	if err != nil {
 		return err
 	}
-	/*
-		// key
-		expandedKeyFile, _ := expandAndCheck(config.KeyFile)
-		err = ioutil.WriteFile(expandedKeyFile, kp.KeyPEM(), 0644)
-		if err != nil {
-			return err
-		}
 
-		// chain
-		expandedChainFile, _ := expandAndCheck(config.ChainFile)
-		err = ioutil.WriteFile(expandedChainFile, kp.ChainPEM(), 0644)
-		if err != nil {
-			return err
-		}
-	*/
 	return nil
+}
+
+// InMemoryKP Helpers
+func toFile(config *FileSystemKeyPairConfig, kp *InMemoryKP) error {
+	// cert
+	certErr := writeToFile(config.CertFile, kp.CertificatePEM())
+	if certErr != nil {
+		return certErr
+	}
+
+	// key
+	keyErr := writeToFile(config.KeyFile, kp.KeyPEM())
+	if keyErr != nil {
+		return keyErr
+	}
+
+	// chain
+	chainErr := writeToFile(config.ChainFile, kp.ChainPEM())
+	if chainErr != nil {
+		return chainErr
+	}
+
+	return nil
+}
+
+func readFromFile(path string) ([]byte, error) {
+	expandedFile, expandErr := expandFilePath(path)
+	if expandErr != nil {
+		log.Warnf("error expanding path: %s", expandErr.Error())
+		return []byte{}, expandErr
+	}
+
+	checkErr := filePathCheck(expandedFile)
+	if checkErr != nil {
+		return []byte{}, checkErr
+	}
+
+	pemBytes, err := ioutil.ReadFile(expandedFile)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return pemBytes, nil
 }
 
 func fromFile(config *FileSystemKeyPairConfig) (*InMemoryKP, error) {
 	kp := &InMemoryKP{}
+	// cert
+	certPEMBytes, err := readFromFile(config.CertFile)
+	if err != nil {
+		return nil, err
+	}
+
+	certPEM, _ := pem.Decode(certPEMBytes)
+	err = kp.ImportCertificate(certPEM.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	//key
+	keyPEMBytes, err := readFromFile(config.KeyFile)
+	if err != nil {
+		return nil, err
+	}
+
+	keyPEM, _ := pem.Decode(keyPEMBytes)
+	switch strings.Contains(keyPEM.Type, "RSA") {
+	case true:
+		key, err := x509.ParsePKCS1PrivateKey(keyPEM.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		kp.PrivateKey = key
+	case false:
+		key, err := x509.ParseECPrivateKey(keyPEM.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		kp.PrivateKey = key
+	}
 	/*
 		// cert
 		expandedCertFile, certFileExists := expandAndCheck(config.CertFile)

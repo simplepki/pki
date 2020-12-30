@@ -90,7 +90,7 @@ func GetKeyPairConfig(v *viper.Viper) (*keypair.KeyPairConfig, error) {
 		}
 
 		if v.IsSet("filesystem.key_file") {
-			fileConfig.CertFile = v.GetString("filesystem.key_file")
+			fileConfig.KeyFile = v.GetString("filesystem.key_file")
 		}
 
 		if v.IsSet("filesystem.cert_file") {
@@ -98,7 +98,7 @@ func GetKeyPairConfig(v *viper.Viper) (*keypair.KeyPairConfig, error) {
 		}
 
 		if v.IsSet("filesystem.chain_file") {
-			fileConfig.CertFile = v.GetString("filesystem.chain_file")
+			fileConfig.ChainFile = v.GetString("filesystem.chain_file")
 		}
 
 		config.KeyAlgorithm = getKeyAlgorithm(v)
